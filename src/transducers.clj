@@ -21,6 +21,7 @@
 (comment
 
   ;; transforming a collection
+
   (->> star-wars
 
        (filter :human?)
@@ -33,6 +34,7 @@
 
 
   ;; transforming a stream
+
   (->> (Observable/from ^Iterable star-wars)
 
        (rx/filter :human?)
@@ -47,6 +49,7 @@
 
 
   ;; transforming a channel
+
   (->> (async/to-chan star-wars)
 
        (async/filter< :human?)
@@ -60,6 +63,7 @@
 
 
   ;; extract all transformations as a reusable transducer
+
   (def racify
        (comp (filter :human?)
              (map :name)
@@ -69,7 +73,9 @@
 
 
   ;; using transducer on a collection
-  (into [] racify star-wars)
+
+  (sequence racify star-wars)
+  (into (sorted-set) racify star-wars)
   (transduce racify conj star-wars)
   (transduce racify str star-wars)
   (transduce (comp racify (interpose " :: ")) str star-wars)
@@ -77,6 +83,18 @@
 
 
   ;; using transducer on a channel
+
   (def racist-chan (async/chan 1 racify))
   (async/onto-chan racist-chan star-wars)
-  (go (println (<! racist-chan))))
+  (go (println (<! racist-chan)))
+
+
+  ;; custom transducers
+
+  (defn trace [rf]
+    (fn
+      ([] (rf))
+      ([result] (rf result))
+      ([result input] (println "input:" input) (rf result input))))
+
+  (sequence (comp trace racify trace) star-wars))
